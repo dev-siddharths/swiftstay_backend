@@ -4,8 +4,6 @@ export class CheckUserDto {
   @IsEmail()
   email: string;
   @IsString()
-  @MinLength(6)
+  @MinLength(6, { message: 'Minimum password required of length 6' })
   password: string;
-  @IsBoolean()
-  remember?: boolean;
 }
