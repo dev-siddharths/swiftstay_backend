@@ -5,9 +5,9 @@ import { AppService } from './app.service';
 import { LoginModule } from './login/login.module';
 import { DbModule } from './db/db.module';
 import { AuthModule } from './auth/auth.module';
-import { StudentsController } from './students/students.controller';
-import { StudentsService } from './students/students.service';
-import { StudentsModule } from './students/students.module';
+import { RoomController } from './room/room.controller';
+import { RoomService } from './room/room.service';
+import { RoomModule } from './room/room.module';
 
 @Module({
   imports: [
@@ -15,9 +15,9 @@ import { StudentsModule } from './students/students.module';
     LoginModule,
     DbModule,
     AuthModule,
-    StudentsModule,
+    RoomModule,
   ],
-  controllers: [AppController, StudentsController],
-  providers: [AppService, StudentsService],
+  controllers: [AppController, RoomController],
+  providers: [AppService, RoomService],
 })
 export class AppModule {}
