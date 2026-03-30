@@ -8,6 +8,8 @@ import { AuthModule } from './auth/auth.module';
 import { RoomController } from './room/room.controller';
 import { RoomService } from './room/room.service';
 import { RoomModule } from './room/room.module';
+import { SignupModule } from './signup/signup.module';
+import { BookingModule } from './booking/booking.module';
 
 @Module({
   imports: [
@@ -16,6 +18,8 @@ import { RoomModule } from './room/room.module';
     DbModule,
     AuthModule,
     RoomModule,
+    SignupModule,
+    BookingModule,
   ],
   controllers: [AppController, RoomController],
   providers: [AppService, RoomService],
