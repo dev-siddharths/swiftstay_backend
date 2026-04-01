@@ -101,9 +101,16 @@ export class RoomService {
   ): Promise<{ success: boolean; data?: Slot[]; message?: string }> {
     try {
       const res = await this.db.query(
-        `SELECT id, "startTime", "endTime" FROM "RoomSlot" WHERE "roomId" = $1 AND "slotDate" = $2`,
+        `SELECT id, "startTime", "endTime"
+        FROM "RoomSlot"
+        WHERE "roomId" = $1
+        AND "slotDate" = $2
+        AND id NOT IN (
+        SELECT "slotId" FROM "Booking" WHERE "booking_date" = $2
+        );`,
         [data.id, data.date],
       );
+
       const payload: Slot[] = res.rows;
       return { success: true, data: payload };
     } catch (error) {
