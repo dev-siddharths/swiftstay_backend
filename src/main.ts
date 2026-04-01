@@ -11,7 +11,10 @@ async function bootstrap() {
     }),
   );
   app.enableCors({
-    origin: 'http://localhost:4001',
+    origin: [
+      'http://localhost:4001',
+      'https://swiftstay-frontend-gamma.vercel.app',
+    ],
   });
   await app.listen(process.env.PORT ?? 4000);
 }
