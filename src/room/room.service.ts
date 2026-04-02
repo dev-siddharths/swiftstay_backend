@@ -110,7 +110,23 @@ export class RoomService {
         );`,
         [data.id, data.date],
       );
+      const startTime: string[] = res.rows.map((val) => {
+        return val.startTime;
+      });
+      const endTime: string[] = res.rows.map((val) => {
+        return val.endTime;
+      });
+      console.log('starting', startTime);
+      console.log('ending', endTime);
+      const now = new Date();
 
+      const currTime = now.toLocaleTimeString('en-IN', { hour12: false });
+
+      for (let i: number = 0; i < startTime.length; i++) {
+        if (currTime > startTime[i] && endTime[i] > currTime) {
+        }
+      }
+      // console.log(res.rows);
       const payload: Slot[] = res.rows;
       return { success: true, data: payload };
     } catch (error) {
