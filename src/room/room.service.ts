@@ -30,23 +30,29 @@ export class RoomService {
       room_name: string;
       room_price: number;
       room_description: string;
+      room_location: string;
       amenities: string[];
     };
     try {
       const checkID = await this.db.query(
-        `Select id from "Room" where id = ${id}`,
+        `Select id from "Room" where id = $1`,
+        [id],
       );
       if (checkID.rowCount === 1) {
         const roomImageDetails = await this.db.query(
-          `select image_url from roomimages where room_id = ${id}`,
+          `select image_url from roomimages where room_id = $1`,
+          [id],
         );
         const roomDetails = await this.db.query(
-          `select title, price, description from "Room" where id = ${id}`,
+          `select title, price, description, location from "Room" where id = $1`,
+          [id],
         );
-        const amenities = await this.db
-          .query(`select t1.name,t1."Icon_Url" from "Amenities" t1 inner join room_amenities t2 
+        const amenities = await this.db.query(
+          `select t1.name,t1."Icon_Url" from "Amenities" t1 inner join room_amenities t2 
         on t1.id = t2.amenity_id 
-        where t2.room_id = ${id}`);
+        where t2.room_id = $1`,
+          [id],
+        );
 
         const roomDetailsInfo = roomDetails.rows;
         if (roomImageDetails.rows.length > 0 && roomDetails.rows.length > 0) {
@@ -69,7 +75,11 @@ export class RoomService {
               return val.description;
             })
             .join();
-
+          const room_location: string = roomDetailsInfo
+            .map((val) => {
+              return val.location;
+            })
+            .join();
           // const amenities:string[] =
 
           const payload: apiPayload = {
@@ -77,6 +87,7 @@ export class RoomService {
             room_name: room_name,
             room_price: Number(room_price),
             room_description: room_description,
+            room_location: room_location,
             amenities: amenities.rows,
           };
           return {
@@ -107,9 +118,13 @@ export class RoomService {
         AND "slotDate" = $2
         AND id NOT IN (
         SELECT "slotId" FROM "Booking" WHERE "booking_date" = $2
+        and cancelled = 'false'
         );`,
         [data.id, data.date],
       );
+      const id: number[] = res.rows.map((val) => {
+        return val.id;
+      });
       const startTime: string[] = res.rows.map((val) => {
         return val.startTime;
       });
@@ -120,16 +135,21 @@ export class RoomService {
       console.log('ending', endTime);
       const now = new Date();
 
-      const currTime = now.toLocaleTimeString('en-IN', { hour12: false });
+      const currTime = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}:${String(now.getSeconds()).padStart(2, '0')}`;
 
       for (let i: number = 0; i < startTime.length; i++) {
-        if (currTime > startTime[i] && endTime[i] > currTime) {
+        if (startTime[i] < currTime && currTime > endTime[i]) {
+          res.rows = res.rows.filter((val) => {
+            return val.id != id[i];
+          });
         }
       }
-      // console.log(res.rows);
       const payload: Slot[] = res.rows;
+      console.log(payload);
+
       return { success: true, data: payload };
     } catch (error) {
+      console.log(error);
       return { success: false, message: 'Try after sometime....' };
     }
   }
