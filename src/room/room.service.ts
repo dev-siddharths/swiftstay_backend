@@ -113,41 +113,27 @@ export class RoomService {
     try {
       const res = await this.db.query(
         `SELECT id, "startTime", "endTime"
-        FROM "RoomSlot"
-        WHERE "roomId" = $1
-        AND "slotDate" = $2
-        AND id NOT IN (
-        SELECT "slotId" FROM "Booking" WHERE "booking_date" = $2
-        and cancelled = 'false'
-        );`,
+       FROM "RoomSlot"
+       WHERE "roomId" = $1
+       AND "slotDate" = $2
+       AND id NOT IN (
+         SELECT "slotId" FROM "Booking" WHERE "booking_date" = $2
+       );`,
         [data.id, data.date],
       );
-      const id: number[] = res.rows.map((val) => {
-        return val.id;
-      });
-      const startTime: string[] = res.rows.map((val) => {
-        return val.startTime;
-      });
-      const endTime: string[] = res.rows.map((val) => {
-        return val.endTime;
-      });
-      console.log('starting', startTime);
-      console.log('ending', endTime);
+      console.log('Incoming:', data.id, data.date);
       const now = new Date();
-
       const currTime = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}:${String(now.getSeconds()).padStart(2, '0')}`;
 
-      for (let i: number = 0; i < startTime.length; i++) {
-        if (startTime[i] < currTime && currTime > endTime[i]) {
-          res.rows = res.rows.filter((val) => {
-            return val.id != id[i];
-          });
+      const filteredSlots = res.rows.filter((slot) => {
+        // Remove past slots (only if today)
+        if (data.date === new Date().toLocaleDateString('en-CA')) {
+          return currTime <= slot.endTime;
         }
-      }
-      const payload: Slot[] = res.rows;
-      console.log(payload);
+        return true;
+      });
 
-      return { success: true, data: payload };
+      return { success: true, data: filteredSlots };
     } catch (error) {
       console.log(error);
       return { success: false, message: 'Try after sometime....' };

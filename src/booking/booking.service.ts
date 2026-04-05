@@ -2,7 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { DbService } from 'src/db/db.service';
 import createBookingDto from './dto/createBooking.dto';
 import { QueryResult } from 'pg';
-
+import { DatabaseError } from 'pg';
 type BookingResponse = {
   Booking_Id: number;
   Room_Name: string;
@@ -15,45 +15,23 @@ type BookingResponse = {
   status: string;
 };
 
-type checkSlotId_Response = {
-  id: number;
-  slotId: number;
-};
 @Injectable()
 export class BookingService {
   constructor(private db: DbService) {}
   async createBooking(data: createBookingDto) {
     try {
-      // console.log(data);
-      const checkSlotId: QueryResult<checkSlotId_Response> =
-        await this.db.query(
-          `select id, "slotId" from "Booking" where "slotId" = $1 AND cancelled = 'true'`,
-          [data.slotId],
-        );
-      // console.log('hai ya nahi ', checkSlotId.rows);
-      if (checkSlotId.rows.length === 1) {
-        const updateSlot = await this.db.query(
-          `Update "Booking" set "userId" = $1, cancelled = 'false' where id = $2`,
-          [data.user_id, checkSlotId.rows[0].id],
-        );
-        console.log('updateSlot', updateSlot.rowCount);
-        if (updateSlot.rowCount === 1) {
-          return { success: true, message: 'Booking Successfull' };
-        } else {
-          return { success: false, message: 'Booking Unsuccessfull' };
-        }
-      } else {
-        const res = await this.db.query(
-          `insert into "Booking"("userId","roomId","slotId","booking_date","final_price") values($1,$2,$3,$4,$5)`,
-          [data.user_id, data.roomId, data.slotId, data.date, data.final_price],
-        );
-        if (res.rowCount === 1) {
-          return { success: true, message: 'Booking Successfull' };
-        } else {
-          return { success: false, message: 'Booking Unsuccessfull' };
-        }
-      }
+      const res = await this.db.query(
+        `INSERT INTO "Booking" ("userId", "roomId", "slotId", "booking_date", "final_price")
+       VALUES ($1, $2, $3, $4, $5)`,
+        [data.user_id, data.roomId, data.slotId, data.date, data.final_price],
+      );
+
+      return { success: true, message: 'Booking Successful' };
     } catch (error) {
+      if (error instanceof DatabaseError && error.code === '23505') {
+        return { success: false, message: 'Slot already booked' };
+      }
+
       console.log(error);
       return { success: false, message: 'Internal Server Error' };
     }
@@ -129,25 +107,47 @@ export class BookingService {
   }
 
   async deleteBooking(booking_id: number) {
+    const client = await this.db.getClient();
+
     try {
-      const res = await this.db.query(
-        `update "Booking" set cancelled = 'true' where id = $1`,
+      await client.query('BEGIN');
+
+      // 1. Get booking details
+      const bookingRes = await client.query(
+        `SELECT "userId", "roomId", "slotId" FROM "Booking" WHERE id = $1`,
         [booking_id],
       );
-      if (res.rowCount === 1) {
-        return { success: true, message: 'Your Booking has been cancelled' };
-      } else {
-        return {
-          success: false,
-          message: 'There is some issue, Please try again later',
-        };
+
+      if (bookingRes.rowCount === 0) {
+        await client.query('ROLLBACK');
+        return { success: false, message: 'Booking not found' };
       }
+
+      const booking = bookingRes.rows[0];
+
+      // 2. Insert into cancelled_bookings
+      await client.query(
+        `INSERT INTO "cancelled_bookings" (id, user_id, room_id, slot_id)
+       VALUES ($1, $2, $3, $4)`,
+        [booking_id, booking.userId, booking.roomId, booking.slotId],
+      );
+
+      // 3. Delete from Booking
+      await client.query(`DELETE FROM "Booking" WHERE id = $1`, [booking_id]);
+
+      await client.query('COMMIT');
+
+      return { success: true, message: 'Your Booking has been cancelled' };
     } catch (error) {
+      await client.query('ROLLBACK');
       console.log(error);
+
       return {
         success: false,
         message: 'Internal Server Error',
       };
+    } finally {
+      client.release();
     }
   }
 }

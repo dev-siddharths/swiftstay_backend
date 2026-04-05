@@ -3,7 +3,7 @@ import { Pool } from 'pg';
 
 @Injectable()
 export class DbService implements OnModuleInit, OnModuleDestroy {
-  private pool: Pool;
+  private pool!: Pool;
   onModuleInit() {
     this.pool = new Pool({
       user: process.env.DB_USER, // DB username
@@ -24,6 +24,9 @@ export class DbService implements OnModuleInit, OnModuleDestroy {
     } finally {
       client.release();
     }
+  }
+  async getClient() {
+    return this.pool.connect();
   }
   async onModuleDestroy() {
     await this.pool.end();
