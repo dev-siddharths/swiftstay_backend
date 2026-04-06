@@ -48,7 +48,7 @@ export class BookingService {
       FROM "Room" r
       INNER JOIN "Booking" b ON r.id = b."roomId"
       INNER JOIN "RoomSlot" rs ON b."slotId" = rs.id
-      WHERE b."userId" = $1 and b.cancelled = 'false'`,
+      WHERE b."userId" = $1`,
         [user.id],
       );
       const allBookingDates: string[] = res.rows.map((val) => {
@@ -91,6 +91,23 @@ export class BookingService {
           statusArray.push('Completed');
         }
       }
+      const checkCancelled = await this.db.query(
+        `SELECT 
+        cb.id as "Booking_Id",
+        r.title as "Room_Name",
+        r.image_url as "Room_Img",
+        r.location as "Room_Location",
+        cb.final_price as "Final_Price",
+        cb.booking_date as "Booking_Date",
+        rs."startTime" as "StartTime",
+        rs."endTime" as "EndTime"
+        FROM "Room" r
+        INNER JOIN "cancelled_bookings" cb ON r.id = cb."room_id"
+        INNER JOIN "RoomSlot" rs ON cb."slot_id" = rs.id
+        WHERE cb."user_id" = $1;`,
+        [user.id],
+      );
+      console.log(checkCancelled.rows);
 
       const data: BookingResponse[] = res.rows.map((val, i) => {
         return {
@@ -99,7 +116,7 @@ export class BookingService {
         };
       });
 
-      return { success: true, data };
+      return { success: true, data, cancelled_booking: checkCancelled.rows };
     } catch (error) {
       console.log(error);
       return { success: false, message: 'Internal Server Error' };
@@ -114,7 +131,7 @@ export class BookingService {
 
       // 1. Get booking details
       const bookingRes = await client.query(
-        `SELECT "userId", "roomId", "slotId" FROM "Booking" WHERE id = $1`,
+        `SELECT "userId", "roomId", "slotId","booking_date","final_price" FROM "Booking" WHERE id = $1`,
         [booking_id],
       );
 
@@ -122,14 +139,28 @@ export class BookingService {
         await client.query('ROLLBACK');
         return { success: false, message: 'Booking not found' };
       }
-
-      const booking = bookingRes.rows[0];
+      type booking = {
+        id: number;
+        userId: number;
+        roomId: number;
+        slotId: number;
+        booking_date: string;
+        final_price: number;
+      };
+      const booking: booking = bookingRes.rows[0];
 
       // 2. Insert into cancelled_bookings
       await client.query(
-        `INSERT INTO "cancelled_bookings" (id, user_id, room_id, slot_id)
-       VALUES ($1, $2, $3, $4)`,
-        [booking_id, booking.userId, booking.roomId, booking.slotId],
+        `INSERT INTO "cancelled_bookings" (id, user_id, room_id, slot_id, booking_date, final_price)
+       VALUES ($1, $2, $3, $4, $5, $6)`,
+        [
+          booking_id,
+          booking.userId,
+          booking.roomId,
+          booking.slotId,
+          booking.booking_date,
+          booking.final_price,
+        ],
       );
 
       // 3. Delete from Booking
