@@ -37,8 +37,15 @@ Backend service for **SwiftStay** — a room booking system built to explore rea
 - Passwords hashed using bcrypt
 
 ## 📦 Installation
-
-```bash
 git clone https://github.com/dev-siddharths/swiftstay_backend.git
 cd swiftstay_backend
 npm install
+⚡ Running the Server
+npm run dev
+
+## Env Format
+DATABASE_URL=your_neon_db_url
+JWT_SECRET=your_secret
+PORT=3000
+FRONTEND_URL=http://localhost:3001
+```bash
