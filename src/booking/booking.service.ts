@@ -129,6 +129,12 @@ export class BookingService {
           status: statusArray[i],
         };
       });
+      // Add this one log temporarily inside getBooking, right after the query:
+      console.log(
+        'DEBUG types:',
+        typeof res.rows[0]?.StartTime,
+        res.rows[0]?.Booking_Date,
+      );
 
       return { success: true, data, cancelled_booking: checkCancelled.rows };
     } catch (error) {
