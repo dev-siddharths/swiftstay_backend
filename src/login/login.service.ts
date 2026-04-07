@@ -12,7 +12,7 @@ export class LoginService {
   ) {}
   async checkLogin(data: CheckUserDto) {
     const result = await this.db.query(
-      `SELECT name,email,password FROM "User" WHERE email = $1`,
+      `SELECT id,name,email,password FROM "User" WHERE email = $1`,
       [data.email],
     );
     const rowsReturned = result.rows[0];
@@ -24,9 +24,10 @@ export class LoginService {
         rowsReturned.password,
       );
       if (!passwordMatch) {
-        return { success: false, message: "Password Doesn't match" };
+        return { success: false, message: 'Password is incorrect' };
       } else {
         const payload = {
+          id: rowsReturned.id,
           email: rowsReturned.email,
           naam: rowsReturned.name,
         };
