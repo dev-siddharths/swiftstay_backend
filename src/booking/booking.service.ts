@@ -119,7 +119,7 @@ export class BookingService {
       return { success: true, data, cancelled_booking: checkCancelled.rows };
     } catch (error) {
       console.log(error);
-      return { success: false, message: 'Internal Server Error' };
+      return { success: false, message: 'Internal Server Error', error: error };
     }
   }
 
