@@ -69,7 +69,7 @@ export class BookingService {
 
       const now = new Date();
 
-      const currDate = now.toLocaleDateString('en-CA'); // "YYYY-MM-DD"
+      const currDate = now.toLocaleDateString('en-IN'); // "YYYY-MM-DD"
       const currTime = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}:${String(now.getSeconds()).padStart(2, '0')}`;
       let statusArray: string[] = [];
 
