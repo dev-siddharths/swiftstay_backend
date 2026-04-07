@@ -51,9 +51,23 @@ export class BookingService {
       WHERE b."userId" = $1`,
         [user.id],
       );
+
+      const istDateFormatter = new Intl.DateTimeFormat('en-CA', {
+        timeZone: 'Asia/Kolkata',
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+      });
+      const istTimeFormatter = new Intl.DateTimeFormat('en-CA', {
+        timeZone: 'Asia/Kolkata',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+        hour12: false,
+      });
       const allBookingDates: string[] = res.rows.map((val) => {
-        const date = new Date(val.Booking_Date).toLocaleDateString('en-CA');
-        return date;
+        const date = new Date(val.Booking_Date);
+        return istDateFormatter.format(date);
       });
 
       const startTime: string[] = res.rows.map((val) => {
@@ -69,8 +83,8 @@ export class BookingService {
 
       const now = new Date();
 
-      const currDate = now.toLocaleDateString('en-IN'); // "YYYY-MM-DD"
-      const currTime = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}:${String(now.getSeconds()).padStart(2, '0')}`;
+      const currDate = istDateFormatter.format(now); // "YYYY-MM-DD"
+      const currTime = istTimeFormatter.format(now);
       let statusArray: string[] = [];
 
       for (let i = 0; i < allBookingDates.length; i++) {
