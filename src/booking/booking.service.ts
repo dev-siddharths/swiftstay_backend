@@ -51,11 +51,11 @@ export class BookingService {
       WHERE b."userId" = $1`,
         [user.id],
       );
-      console.log(
-        'DEBUG types:',
-        typeof res.rows[0]?.StartTime,
-        res.rows[0]?.Booking_Date,
-      );
+      // console.log(
+      //   'DEBUG types:',
+      //   typeof res.rows[0]?.StartTime,
+      //   res.rows[0]?.Booking_Date,
+      // );
       const istDateFormatter = new Intl.DateTimeFormat('en-CA', {
         timeZone: 'Asia/Kolkata',
         year: 'numeric',

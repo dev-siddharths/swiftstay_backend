@@ -15,7 +15,7 @@ export class SignupService {
         [email],
       );
       if (res.rows.length > 0) {
-        return { success: false, message: 'User already exists' };
+        return { success: false, message: 'Email already exists' };
       } else {
         const password = data.password;
         // Hash the password before storing it in the database.
