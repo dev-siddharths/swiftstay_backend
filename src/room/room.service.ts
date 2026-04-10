@@ -121,9 +121,11 @@ export class RoomService {
        );`,
         [data.id, data.date],
       );
-      console.log('Incoming:', data.id, data.date);
       const now = new Date();
       const currTime = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}:${String(now.getSeconds()).padStart(2, '0')}`;
+
+      console.log('current time:', currTime);
+      console.log('coming from db time:', res.rows);
 
       const filteredSlots = res.rows.filter((slot) => {
         // Remove past slots (only if today)
