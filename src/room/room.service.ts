@@ -121,15 +121,31 @@ export class RoomService {
        );`,
         [data.id, data.date],
       );
-      const now = new Date();
-      const currTime = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}:${String(now.getSeconds()).padStart(2, '0')}`;
 
+      const istDateFormatter = new Intl.DateTimeFormat('en-CA', {
+        timeZone: 'Asia/Kolkata',
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+      });
+      const istTimeFormatter = new Intl.DateTimeFormat('en-CA', {
+        timeZone: 'Asia/Kolkata',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+        hour12: false,
+      });
+
+      const now = new Date();
+      const currTime = istTimeFormatter.format(now);
+      const currDate = istDateFormatter.format(now);
       console.log('current time:', currTime);
       console.log('coming from db time:', res.rows);
 
+      console.log("Today's date server", currDate);
       const filteredSlots = res.rows.filter((slot) => {
         // Remove past slots (only if today)
-        if (data.date === new Date().toLocaleDateString('en-CA')) {
+        if (data.date === currDate) {
           return currTime <= slot.endTime;
         }
         return true;
