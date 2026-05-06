@@ -18,12 +18,13 @@ type BookingResponse = {
 @Injectable()
 export class BookingService {
   constructor(private db: DbService) {}
-  async createBooking(data: createBookingDto) {
+  async createBooking(data: createBookingDto, currentUserId: number) {
     try {
+      console.log('userId', currentUserId);
       const res = await this.db.query(
         `INSERT INTO "Booking" ("userId", "roomId", "slotId", "booking_date", "final_price")
        VALUES ($1, $2, $3, $4, $5)`,
-        [data.user_id, data.roomId, data.slotId, data.date, data.final_price],
+        [currentUserId, data.roomId, data.slotId, data.date, data.final_price],
       );
 
       return { success: true, message: 'Booking Successful' };

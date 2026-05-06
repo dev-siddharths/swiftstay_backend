@@ -9,8 +9,8 @@ export class BookingController {
   constructor(private bookingService: BookingService) {}
   @Post('createBooking')
   @UseGuards(JwtAuthGuard)
-  createBooking(@Body() data: createBookingDto) {
-    return this.bookingService.createBooking(data);
+  createBooking(@Body() data: createBookingDto, @Req() currentUserId: any) {
+    return this.bookingService.createBooking(data, currentUserId.user.id);
   }
   //get bookings for that specific user
   @Get('getBooking')

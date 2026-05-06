@@ -2,14 +2,12 @@ import { IsNumber, IsString } from 'class-validator';
 
 class createBookingDto {
   @IsNumber()
-  user_id: number;
+  roomId!: number;
   @IsNumber()
-  roomId: number;
-  @IsNumber()
-  slotId: number;
+  slotId!: number;
   @IsString()
-  date: string;
+  date!: string;
   @IsNumber()
-  final_price: number;
+  final_price!: number;
 }
 export default createBookingDto;
