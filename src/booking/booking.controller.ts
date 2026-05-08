@@ -21,7 +21,7 @@ export class BookingController {
 
   @Post('deleteBooking')
   @UseGuards(JwtAuthGuard)
-  deleteBooking(@Body() data: deleteBooking) {
-    return this.bookingService.deleteBooking(data.booking_id);
+  deleteBooking(@Body() data: deleteBooking, @Req() user: any) {
+    return this.bookingService.deleteBooking(data.booking_id, user.user.id);
   }
 }

@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { ForbiddenException, Injectable } from '@nestjs/common';
 import { DbService } from 'src/db/db.service';
 import createBookingDto from './dto/createBooking.dto';
 import { QueryResult } from 'pg';
@@ -142,7 +142,7 @@ export class BookingService {
     }
   }
 
-  async deleteBooking(booking_id: number) {
+  async deleteBooking(booking_id: number, user_id: number) {
     const client = await this.db.getClient();
 
     try {
@@ -153,10 +153,13 @@ export class BookingService {
         `SELECT "userId", "roomId", "slotId","booking_date","final_price" FROM "Booking" WHERE id = $1`,
         [booking_id],
       );
+      const booking: booking = bookingRes.rows[0];
 
       if (bookingRes.rowCount === 0) {
         await client.query('ROLLBACK');
         return { success: false, message: 'Booking not found' };
+      } else if (booking.userId !== user_id) {
+        throw new ForbiddenException('You cannot cancel this booking');
       }
       type booking = {
         id: number;
@@ -166,7 +169,6 @@ export class BookingService {
         booking_date: string;
         final_price: number;
       };
-      const booking: booking = bookingRes.rows[0];
 
       // 2. Insert into cancelled_bookings
       await client.query(
@@ -191,11 +193,7 @@ export class BookingService {
     } catch (error) {
       await client.query('ROLLBACK');
       console.log(error);
-
-      return {
-        success: false,
-        message: 'Internal Server Error',
-      };
+      throw error;
     } finally {
       client.release();
     }
