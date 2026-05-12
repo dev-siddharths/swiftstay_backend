@@ -1,27 +1,39 @@
-import { Body, Controller, Get, Post, Req, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Param,
+  Post,
+  Req,
+  UseGuards,
+} from '@nestjs/common';
+
 import createBookingDto from './dto/createBooking.dto';
 import { BookingService } from './booking.service';
 import { JwtAuthGuard } from 'src/auth/jwt-auth/jwt-auth.guard';
-import deleteBooking from './dto/deleteBooking.dto';
 
-@Controller('booking')
+@Controller('bookings')
 export class BookingController {
   constructor(private bookingService: BookingService) {}
-  @Post('createBooking')
+
+  @Post('')
   @UseGuards(JwtAuthGuard)
-  createBooking(@Body() data: createBookingDto, @Req() currentUserId: any) {
-    return this.bookingService.createBooking(data, currentUserId.user.id);
+  createBooking(@Body() data: createBookingDto, @Req() req: any) {
+    return this.bookingService.createBooking(data, req.user.id);
   }
-  //get bookings for that specific user
-  @Get('getBooking')
+
+  // get bookings for logged in user
+  @Get('')
   @UseGuards(JwtAuthGuard)
   getBookings(@Req() req: any) {
     return this.bookingService.getBooking(req.user);
   }
 
-  @Post('deleteBooking')
+  // cancel/delete booking
+  @Delete(':id')
   @UseGuards(JwtAuthGuard)
-  deleteBooking(@Body() data: deleteBooking, @Req() user: any) {
-    return this.bookingService.deleteBooking(data.booking_id, user.user.id);
+  deleteBooking(@Param('id') id: string, @Req() req: any) {
+    return this.bookingService.deleteBooking(Number(id), req.user.id);
   }
 }
