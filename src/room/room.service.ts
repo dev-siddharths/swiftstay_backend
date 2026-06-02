@@ -1,4 +1,8 @@
-import { Injectable } from '@nestjs/common';
+import {
+  Injectable,
+  InternalServerErrorException,
+  NotFoundException,
+} from '@nestjs/common';
 import { DbService } from 'src/db/db.service';
 import { RoomDto } from './dto/room.dto';
 import { GetSlotsDto } from './dto/GetSlotsDto.dto';
@@ -18,9 +22,9 @@ export class RoomService {
     const result = await this.db.query(`select * from "Room" order by "price"`);
     const rowsReturned = result.rows;
     if (rowsReturned.length > 0) {
-      return { success: true, data: rowsReturned };
+      return { success: true, data: rowsReturned, message: 'Rooms exist' };
     } else {
-      return { success: false, message: 'No rooms exist' };
+      return { success: true, data: [], message: 'No rooms exist' };
     }
   }
   //to fetch room details using id
@@ -98,10 +102,14 @@ export class RoomService {
           return { status: false, message: 'Error in generating payload' };
         }
       } else {
-        return { status: false, message: `Room Doesn't Exist` };
+        throw new NotFoundException('Room Not Found');
       }
     } catch (error) {
-      return { status: false, message: 'Failed' };
+      if (error instanceof NotFoundException) {
+        throw error;
+      } else {
+        throw new InternalServerErrorException('Failed');
+      }
     }
   }
 
@@ -121,13 +129,31 @@ export class RoomService {
        );`,
         [data.id, data.date],
       );
-      console.log('Incoming:', data.id, data.date);
-      const now = new Date();
-      const currTime = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}:${String(now.getSeconds()).padStart(2, '0')}`;
 
+      const istDateFormatter = new Intl.DateTimeFormat('en-CA', {
+        timeZone: 'Asia/Kolkata',
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+      });
+      const istTimeFormatter = new Intl.DateTimeFormat('en-CA', {
+        timeZone: 'Asia/Kolkata',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+        hour12: false,
+      });
+
+      const now = new Date();
+      const currTime = istTimeFormatter.format(now);
+      const currDate = istDateFormatter.format(now);
+      console.log('current time:', currTime);
+      console.log('coming from db time:', res.rows);
+
+      console.log("Today's date server", currDate);
       const filteredSlots = res.rows.filter((slot) => {
         // Remove past slots (only if today)
-        if (data.date === new Date().toLocaleDateString('en-CA')) {
+        if (data.date === currDate) {
           return currTime <= slot.endTime;
         }
         return true;
@@ -135,8 +161,7 @@ export class RoomService {
 
       return { success: true, data: filteredSlots };
     } catch (error) {
-      console.log(error);
-      return { success: false, message: 'Try after sometime....' };
+      throw new InternalServerErrorException('Failed');
     }
   }
 }

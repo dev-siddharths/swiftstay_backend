@@ -4,10 +4,10 @@ import { RoomDto } from './dto/room.dto';
 import { JwtAuthGuard } from 'src/auth/jwt-auth/jwt-auth.guard';
 import { GetSlotsDto } from './dto/GetSlotsDto.dto';
 
-@Controller('room')
+@Controller('rooms')
 export class RoomController {
   constructor(private roomService: RoomService) {}
-  @Get('getRooms')
+  @Get()
   @UseGuards(JwtAuthGuard)
   getRooms(): Promise<{
     success: boolean;
@@ -23,7 +23,7 @@ export class RoomController {
     return this.roomService.getRoomById(id);
   }
 
-  @Post('getSlot')
+  @Post('slots')
   @UseGuards(JwtAuthGuard)
   getSlotByRoomId(@Body() data: GetSlotsDto) {
     return this.roomService.getSlotsBy_RoomId_And_Date(data);
