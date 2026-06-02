@@ -1,4 +1,8 @@
-import { Injectable } from '@nestjs/common';
+import {
+  ConflictException,
+  Injectable,
+  InternalServerErrorException,
+} from '@nestjs/common';
 import { DbService } from 'src/db/db.service';
 import createUserDto from './dto/createUser.dto';
 import * as bcrypt from 'bcrypt';
@@ -15,7 +19,7 @@ export class SignupService {
         [email],
       );
       if (res.rows.length > 0) {
-        return { success: false, message: 'Email already exists' };
+        throw new ConflictException('Email already exists');
       } else {
         const password = data.password;
         // Hash the password before storing it in the database.
@@ -32,18 +36,15 @@ export class SignupService {
         if (res.rowCount === 1) {
           return { success: true, message: 'User successfully created' };
         } else {
-          return {
-            success: false,
-            message: 'User not created',
-          };
+          throw new InternalServerErrorException('Could not create user');
         }
       }
     } catch (error) {
-      console.log(error);
-      return {
-        success: false,
-        message: 'Server Down Please Try Again Later',
-      };
+      if (error instanceof ConflictException) {
+        throw error;
+      } else {
+        throw new InternalServerErrorException('Internal Server Error');
+      }
     }
   }
 }
