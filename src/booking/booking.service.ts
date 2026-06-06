@@ -21,13 +21,30 @@ export class BookingService {
   async createBooking(data: createBookingDto, currentUserId: number) {
     try {
       console.log('userId', currentUserId);
-      const res = await this.db.query(
-        `INSERT INTO "Booking" ("userId", "roomId", "slotId", "booking_date", "final_price")
-       VALUES ($1, $2, $3, $4, $5)`,
-        [currentUserId, data.roomId, data.slotId, data.date, data.final_price],
+      const checkLock = await this.db.query(
+        `select user_id, slot_id from slot_locks where user_id = $1 and slot_id = $2`,
+        [currentUserId, data.slotId],
       );
+      if (checkLock.rows.length === 0) {
+        return {
+          success: false,
+          message: 'Lock for this slot and userId does not exist',
+        };
+      } else {
+        const res = await this.db.query(
+          `INSERT INTO "Booking" ("userId", "roomId", "slotId", "booking_date", "final_price")
+       VALUES ($1, $2, $3, $4, $5)`,
+          [
+            currentUserId,
+            data.roomId,
+            data.slotId,
+            data.date,
+            data.final_price,
+          ],
+        );
 
-      return { success: true, message: 'Booking Successful' };
+        return { success: true, message: 'Booking Successful' };
+      }
     } catch (error) {
       if (error instanceof DatabaseError && error.code === '23505') {
         return { success: false, message: 'Slot already booked' };
@@ -35,6 +52,111 @@ export class BookingService {
 
       console.log(error);
       return { success: false, message: 'Internal Server Error' };
+    }
+  }
+
+  // lock slot
+
+  async lockSlot(slotNo: number, currentUserId: number) {
+    try {
+      //start
+      await this.db.query('BEGIN');
+      //middle
+      //check if slot is already booked
+      const checkBooked = await this.db.query(
+        `SELECT id FROM "Booking" WHERE "slotId" = $1`,
+        [slotNo],
+      );
+      if (checkBooked.rows.length > 0) {
+        await this.db.query('ROLLBACK');
+        return {
+          success: false,
+          message: 'This slot has already been booked',
+        };
+      }
+
+      //lock the the slot row with pessimistic lock
+      await this.db.query(
+        `SELECT id FROM "RoomSlot" WHERE id = $1 FOR UPDATE`,
+        [slotNo],
+      );
+
+      //delete stale locks on the selected slot
+      await this.db.query(
+        `DELETE FROM slot_locks WHERE slot_id = $1 AND locked_until < NOW()`,
+        [slotNo],
+      );
+
+      //check for prexisting locks
+      const checkLock = await this.db.query(
+        `select id from slot_locks where slot_id =$1`,
+        [slotNo],
+      );
+      if (checkLock.rows.length > 0) {
+        await this.db.query('ROLLBACK');
+        return {
+          success: false,
+          message:
+            "Sorry this slot isn't available for some time. Try again later",
+        };
+      }
+
+      //no lock then acquire one
+      await this.db.query(
+        `INSERT INTO slot_locks (user_id, slot_id, locked_until) 
+   VALUES ($1, $2, NOW() + INTERVAL '60 seconds')`,
+        [currentUserId, slotNo],
+      );
+      //end
+      await this.db.query('COMMIT');
+
+      return { success: true, message: 'lock acquired' };
+    } catch (err) {
+      await this.db.query('ROLLBACK');
+      return {
+        success: false,
+        message:
+          "Sorry this slot isn't available for some time. Try again later",
+      };
+    }
+
+    // if (checkSlot.rows.length > 0) {
+    // } else {
+    //   return {
+    //     success: false,
+    //     message: "Sorry slot isn't available for the time beign",
+    //   };
+    // }
+  }
+
+  //releaseLock
+  async releaseLock(slotNo: number, currentUserId: number) {
+    try {
+      const deleteLock = await this.db.query(
+        'delete from slot_locks where slot_id = $1 and user_id = $2',
+        [slotNo, currentUserId],
+      );
+      if (deleteLock.rowCount === 1) {
+        return {
+          success: true,
+          message: 'Slot lock deleted',
+        };
+      } else if (deleteLock.rowCount === 0) {
+        return {
+          success: false,
+          message: 'Slot lock not found',
+        };
+      } else {
+        return {
+          success: true,
+          message: 'Suspicious User, had 2 locks',
+        };
+      }
+    } catch (error) {
+      return {
+        success: false,
+        message: 'Sorry! Lock not deleted',
+      };
     }
   }
 

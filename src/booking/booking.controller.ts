@@ -22,7 +22,18 @@ export class BookingController {
   createBooking(@Body() data: createBookingDto, @Req() req: any) {
     return this.bookingService.createBooking(data, req.user.id);
   }
+  // acquire lock
+  @Post('slots/:slotId/lock')
+  @UseGuards(JwtAuthGuard)
+  lockSlot(@Param('slotId') slot_id: string, @Req() req: any) {
+    return this.bookingService.lockSlot(Number(slot_id), req.user.id);
+  }
 
+  @Delete('slots/:slotId/lock')
+  @UseGuards(JwtAuthGuard)
+  releaseLock(@Param('slotId') slot_id: string, @Req() req: any) {
+    return this.bookingService.releaseLock(Number(slot_id), req.user.id);
+  }
   // get bookings for logged in user
   @Get('')
   @UseGuards(JwtAuthGuard)
