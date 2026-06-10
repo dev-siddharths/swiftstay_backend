@@ -1,4 +1,9 @@
-import { ForbiddenException, Injectable } from '@nestjs/common';
+import {
+  ConflictException,
+  ForbiddenException,
+  Injectable,
+  InternalServerErrorException,
+} from '@nestjs/common';
 import { DbService } from 'src/db/db.service';
 import createBookingDto from './dto/createBooking.dto';
 import { QueryResult } from 'pg';
@@ -69,10 +74,7 @@ export class BookingService {
       );
       if (checkBooked.rows.length > 0) {
         await this.db.query('ROLLBACK');
-        return {
-          success: false,
-          message: 'This slot has already been booked',
-        };
+        throw new ConflictException('This slot has already been booked');
       }
 
       //lock the the slot row with pessimistic lock
@@ -94,11 +96,9 @@ export class BookingService {
       );
       if (checkLock.rows.length > 0) {
         await this.db.query('ROLLBACK');
-        return {
-          success: false,
-          message:
-            "Sorry this slot isn't available for some time. Try again later",
-        };
+        throw new ConflictException(
+          "Sorry this slot isn't available for some time. Try again later",
+        );
       }
 
       //no lock then acquire one
@@ -113,20 +113,11 @@ export class BookingService {
       return { success: true, message: 'lock acquired' };
     } catch (err) {
       await this.db.query('ROLLBACK');
-      return {
-        success: false,
-        message:
-          "Sorry this slot isn't available for some time. Try again later",
-      };
+      if (err instanceof ConflictException) throw err;
+      throw new InternalServerErrorException(
+        'Something went wrong. Please try again later',
+      );
     }
-
-    // if (checkSlot.rows.length > 0) {
-    // } else {
-    //   return {
-    //     success: false,
-    //     message: "Sorry slot isn't available for the time beign",
-    //   };
-    // }
   }
 
   //releaseLock
