@@ -36,21 +36,42 @@ export class BookingService {
           message: 'Lock for this slot and userId does not exist',
         };
       } else {
+        // Fetch the slot's own date/time and compute (in IST) whether it has
+        // already started or ended. Never trust a date from the client.
+        const slotRes = await this.db.query(
+          `SELECT "slotDate", "startTime", "endTime",
+             ("slotDate" + "endTime") < (NOW() AT TIME ZONE 'Asia/Kolkata') AS ended
+           FROM "RoomSlot" WHERE id = $1`,
+          [data.slotId],
+        );
+
+        if (slotRes.rows.length === 0) {
+          return { success: false, message: 'Slot not found' };
+        }
+
+        const slot = slotRes.rows[0];
+
+        // Validate slotDate + endTime before creating a booking. A slot that has
+        // started but not yet ended is still bookable.
+        if (slot.ended) {
+          throw new ConflictException({
+            success: false,
+            message: 'This slot has already ended and can no longer be booked',
+          });
+        }
+
+        // Pull booking_date straight from the slot in SQL so the DATE never
+        // round-trips through a JS Date (which can shift it by a day via TZ).
         const res = await this.db.query(
           `INSERT INTO "Booking" ("userId", "roomId", "slotId", "booking_date", "final_price")
-       VALUES ($1, $2, $3, $4, $5)`,
-          [
-            currentUserId,
-            data.roomId,
-            data.slotId,
-            data.date,
-            data.final_price,
-          ],
+       VALUES ($1, $2, $3, (SELECT "slotDate" FROM "RoomSlot" WHERE id = $3), $4)`,
+          [currentUserId, data.roomId, data.slotId, data.final_price],
         );
 
         return { success: true, message: 'Booking Successful' };
       }
     } catch (error) {
+      if (error instanceof ConflictException) throw error;
       if (error instanceof DatabaseError && error.code === '23505') {
         return { success: false, message: 'Slot already booked' };
       }

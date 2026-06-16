@@ -5,8 +5,8 @@ class createBookingDto {
   roomId!: number;
   @IsNumber()
   slotId!: number;
-  @IsString()
-  date!: string;
+  // @IsString()
+  // date!: string;
   @IsNumber()
   final_price!: number;
 }
