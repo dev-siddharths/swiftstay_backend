@@ -7,6 +7,7 @@ import { GetSlotsDto } from './dto/GetSlotsDto.dto';
 @Controller('rooms')
 export class RoomController {
   constructor(private roomService: RoomService) {}
+
   @Get()
   @UseGuards(JwtAuthGuard)
   getRooms(): Promise<{
