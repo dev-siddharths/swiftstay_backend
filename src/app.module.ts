@@ -10,6 +10,8 @@ import { RoomService } from './room/room.service';
 import { RoomModule } from './room/room.module';
 import { SignupModule } from './signup/signup.module';
 import { BookingModule } from './booking/booking.module';
+import { RedisService } from './redis/redis.service';
+import { RedisModule } from './redis/redis.module';
 
 @Module({
   imports: [
@@ -20,8 +22,9 @@ import { BookingModule } from './booking/booking.module';
     RoomModule,
     SignupModule,
     BookingModule,
+    RedisModule,
   ],
   controllers: [AppController, RoomController],
-  providers: [AppService, RoomService],
+  providers: [AppService, RoomService, RedisService],
 })
 export class AppModule {}

@@ -6,6 +6,9 @@ import {
 import { DbService } from 'src/db/db.service';
 import { RoomDto } from './dto/room.dto';
 import { GetSlotsDto } from './dto/GetSlotsDto.dto';
+import { RedisService } from 'src/redis/redis.service';
+import { RedisClientType } from 'redis';
+
 type Slot = {
   id: number;
   startTime: string;
@@ -13,18 +16,42 @@ type Slot = {
 };
 @Injectable()
 export class RoomService {
-  constructor(private db: DbService) {}
+  constructor(
+    private db: DbService,
+    private rs: RedisService,
+  ) {}
   async getRooms(): Promise<{
     success: boolean;
     data?: RoomDto[];
     message?: string;
   }> {
-    const result = await this.db.query(`select * from "Room" order by "price"`);
-    const rowsReturned = result.rows;
-    if (rowsReturned.length > 0) {
-      return { success: true, data: rowsReturned, message: 'Rooms exist' };
-    } else {
-      return { success: true, data: [], message: 'No rooms exist' };
+    try {
+      //cache hit
+      const redisClient: RedisClientType = this.rs.getClient();
+      const cachedRooms: string | null = await redisClient.get('rooms:all');
+      if (cachedRooms) {
+        return {
+          success: true,
+          data: JSON.parse(cachedRooms),
+          message: 'Rooms exist',
+        };
+      }
+
+      //cache miss
+      const result = await this.db.query(
+        `select * from "Room" order by "price"`,
+      );
+      const rowsReturned = result.rows;
+      if (rowsReturned.length > 0) {
+        await redisClient.set('rooms:all', JSON.stringify(rowsReturned), {
+          EX: 3600,
+        });
+        return { success: true, data: rowsReturned, message: 'Rooms exist' };
+      } else {
+        return { success: true, data: [], message: 'No rooms exist' };
+      }
+    } catch (error) {
+      throw error;
     }
   }
   //to fetch room details using id
