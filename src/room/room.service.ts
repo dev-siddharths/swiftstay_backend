@@ -28,24 +28,32 @@ export class RoomService {
     try {
       //cache hit
       const redisClient: RedisClientType = this.rs.getClient();
-      const cachedRooms: string | null = await redisClient.get('rooms:all');
-      if (cachedRooms) {
-        return {
-          success: true,
-          data: JSON.parse(cachedRooms),
-          message: 'Rooms exist',
-        };
+      try {
+        const cachedRooms: string | null = await redisClient.get('rooms:all');
+        if (cachedRooms) {
+          return {
+            success: true,
+            data: JSON.parse(cachedRooms),
+            message: 'Rooms exist',
+          };
+        }
+      } catch (error) {
+        console.log('Redis is unreachable ', error);
       }
-
       //cache miss
       const result = await this.db.query(
         `select * from "Room" order by "price"`,
       );
       const rowsReturned = result.rows;
       if (rowsReturned.length > 0) {
-        await redisClient.set('rooms:all', JSON.stringify(rowsReturned), {
-          EX: 3600,
-        });
+        try {
+          await redisClient.set('rooms:all', JSON.stringify(rowsReturned), {
+            EX: 3600,
+          });
+        } catch (error) {
+          console.log('Redis is unreachable', error);
+        }
+
         return { success: true, data: rowsReturned, message: 'Rooms exist' };
       } else {
         return { success: true, data: [], message: 'No rooms exist' };

@@ -60,10 +60,16 @@ export class RoomsService {
           ],
         );
         if (res.rowCount === 0) {
+          //update failure
           return { success: false, message: 'Did not update' };
         } else {
+          //update successfull
           const redisClient: RedisClientType = this.rs.getClient();
-          await redisClient.del('rooms:all');
+          try {
+            await redisClient.del('rooms:all');
+          } catch (error) {
+            console.log('Redis cache invalidation failed:', error);
+          }
 
           return { success: true, message: 'Update Successfull' };
         }
@@ -98,7 +104,11 @@ export class RoomsService {
         return { success: false, message: 'Did not create' };
       } else {
         const redisClient: RedisClientType = this.rs.getClient();
-        await redisClient.del('rooms:all');
+        try {
+          await redisClient.del('rooms:all');
+        } catch (error) {
+          console.log('Redis is unreachable', error);
+        }
 
         return { success: true, message: 'Create Successfull' };
       }
@@ -122,8 +132,11 @@ export class RoomsService {
           return { success: false, message: 'Did not delete' };
         } else {
           const redisClient: RedisClientType = this.rs.getClient();
-          await redisClient.del('rooms:all');
-
+          try {
+            await redisClient.del('rooms:all');
+          } catch (error) {
+            console.log('Redis is unreachable', error);
+          }
           return { success: true, message: 'Delete Successfull' };
         }
       } else {
