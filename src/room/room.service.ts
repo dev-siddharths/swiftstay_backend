@@ -20,6 +20,75 @@ export class RoomService {
     private db: DbService,
     private rs: RedisService,
   ) {}
+
+  /**
+   * Pauses the current async flow for `ms` milliseconds without blocking the
+   * event loop. Used by cache-miss waiters to space out their cache polls.
+   * @param ms - milliseconds to wait before the returned promise resolves
+   */
+  private sleep(ms: number) {
+    return new Promise((resolve) => {
+      setTimeout(resolve, ms);
+    });
+  }
+  /**
+   * Reads all rooms from the database, repopulates the `rooms:all` cache, and
+   * releases `rooms:lock`. Invoked by the request that won the lock, and as the
+   * fallback when a waiter times out or Redis is unavailable.
+   *
+   * Redis failures (cache write / lock release) are swallowed so a cache outage
+   * never fails the request — the DB result is still returned. A DB failure
+   * releases the lock and rethrows.
+   *
+   * @throws {InternalServerErrorException} when the database query fails
+   */
+  private async roomsDBCall() {
+    const redisClient: RedisClientType = this.rs.getClient();
+    let result;
+    try {
+      result = await this.db.query(`select * from "Room" order by "price"`);
+    } catch (error) {
+      await redisClient.del('rooms:lock');
+      console.log('Db is down');
+      throw new InternalServerErrorException('Db Down');
+    }
+    const rowsReturned = result.rows;
+    if (rowsReturned.length > 0) {
+      try {
+        await redisClient.set('rooms:all', JSON.stringify(rowsReturned), {
+          EX: 3600,
+        });
+      } catch (error) {
+        console.log('Redis is unreachable', error);
+      } finally {
+        try {
+          await redisClient.del('rooms:lock');
+        } catch (error) {
+          console.log('Redis is down');
+        }
+      }
+
+      return {
+        success: true,
+        data: rowsReturned,
+        message: 'Rooms exist',
+      };
+    } else {
+      return { success: true, data: [], message: 'No rooms exist' };
+    }
+  }
+
+  /**
+   * Returns all rooms, served from the Redis `rooms:all` cache when warm.
+   *
+   * On a cache miss it uses a `rooms:lock` (SET NX EX 5s) to prevent a cache
+   * stampede: the one request that acquires the lock rebuilds the cache from the
+   * DB, while concurrent requests poll the cache (~200ms x 26 ≈ 5s) before
+   * falling back to a direct DB read. If Redis is unreachable, it degrades to a
+   * direct DB read so the endpoint keeps working.
+   *
+   * @returns the room list; `data` is `[]` when no rooms exist
+   */
   async getRooms(): Promise<{
     success: boolean;
     data?: RoomDto[];
@@ -41,22 +110,45 @@ export class RoomService {
         console.log('Redis is unreachable ', error);
       }
       //cache miss
-      const result = await this.db.query(
-        `select * from "Room" order by "price"`,
-      );
-      const rowsReturned = result.rows;
-      if (rowsReturned.length > 0) {
-        try {
-          await redisClient.set('rooms:all', JSON.stringify(rowsReturned), {
-            EX: 3600,
-          });
-        } catch (error) {
-          console.log('Redis is unreachable', error);
-        }
+      try {
+        let lock: string | null = await redisClient.set('rooms:lock', 1, {
+          NX: true,
+          EX: 5,
+        });
 
-        return { success: true, data: rowsReturned, message: 'Rooms exist' };
-      } else {
-        return { success: true, data: [], message: 'No rooms exist' };
+        if (lock === 'OK') {
+          //i got the lock
+          return await this.roomsDBCall();
+        } else {
+          //i did not get it
+
+          let count: number = 0;
+          while (true) {
+            if (count > 25) {
+              return await this.roomsDBCall();
+            } else {
+              await this.sleep(200);
+              try {
+                const cachedRooms: string | null =
+                  await redisClient.get('rooms:all');
+
+                if (cachedRooms) {
+                  return {
+                    success: true,
+                    data: JSON.parse(cachedRooms),
+                    message: 'Rooms exist',
+                  };
+                }
+              } catch (error) {
+                console.log('Redis is down', error);
+              }
+            }
+            count++;
+          }
+        }
+      } catch (error) {
+        console.log('Redis is down', error);
+        return await this.roomsDBCall();
       }
     } catch (error) {
       throw error;
